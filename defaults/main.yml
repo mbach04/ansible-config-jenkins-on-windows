@@ -1,0 +1,8 @@
+---
+jenkins_plugins:
+  - git
+  - log-parser
+  - copyartifact
+  - workflow-aggregator
+  - workflow-multibranch
+  - template-project

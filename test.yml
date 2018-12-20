@@ -1,0 +1,33 @@
+---
+- name: Install Jenkins slave and deps on win16
+  hosts: win
+  gather_facts: true
+  tasks:
+    - name: Install Jenkins and deps
+      win_chocolatey:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - curl
+        - jre8
+        - jenkins
+
+    - name: Scrape the temp admin pass from Jenkins
+      slurp:
+        src:  C:\Program Files (x86)\Jenkins\secrets\initialAdminPassword
+      no_log: true
+      register: jenkins_pass
+
+    - name: POST the initialAdminPassword
+      uri:
+        method: POST
+        url: "http://192.168.1.120:8080/login"
+        body: "from=%2F&j_username=admin&j_password={{ jenkins_pass['content'] | b64decode | trim }}&Jenkins-Crumb=a9ca369a0c565e8ff7a63ffd4aba4582"
+        validate_certs: no
+        ignore_errors: yes
+        status_code: 200
+      register: result
+      delegate_to: 127.0.0.1
+
+    - debug:
+        var: result 
