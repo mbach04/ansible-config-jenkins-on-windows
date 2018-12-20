@@ -1,7 +1,18 @@
 ---
 - name: Install Jenkins slave and deps on win16
   hosts: win
-  gather_facts: true
+  gather_facts: yes
+  vars:
+    jenkins_jar: /tmp/jenkins-cli.jar
+    jenkins_plugins:
+      - git
+      - log-parser
+      - kubernetes
+      - copyartifact
+      - workflow-aggregator
+      - workflow-multibranch
+      - template-project
+
   tasks:
     - name: Install Jenkins and deps
       win_chocolatey:
@@ -18,16 +29,35 @@
       no_log: true
       register: jenkins_pass
 
-    - name: POST the initialAdminPassword
-      uri:
-        method: POST
-        url: "http://192.168.1.120:8080/login"
-        body: "from=%2F&j_username=admin&j_password={{ jenkins_pass['content'] | b64decode | trim }}&Jenkins-Crumb=a9ca369a0c565e8ff7a63ffd4aba4582"
-        validate_certs: no
-        ignore_errors: yes
-        status_code: 200
-      register: result
+    - debug:
+        msg: "{{ jenkins_pass['content'] | b64decode | trim }}"
+
+    - name: Download the jenkins cli jar
+      get_url:
+        url: "http://192.168.1.120:8080/jnlpJars/jenkins-cli.jar"
+        dest: "{{ jenkins_jar }}"
       delegate_to: 127.0.0.1
 
-    - debug:
-        var: result 
+    - name: Install Jenkins plugins
+      shell:  "java -jar {{ jenkins_jar }} -auth user:redhat -s http://192.168.1.120:8080/ install-plugin {{ item }}"
+      with_items: "{{ jenkins_plugins }}"
+      delegate_to: 127.0.0.1
+      
+
+    # - name: POST the initialAdminPassword
+    #   uri:
+    #     method: POST
+    #     url: "http://192.168.1.120:8080/login"
+    #     body: "from=%2F&j_username=admin&j_password={{ jenkins_pass['content'] | b64decode | trim }}&Jenkins-Crumb=a9ca369a0c565e8ff7a63ffd4aba4582"
+    #     validate_certs: no
+    #     ignore_errors: yes
+    #     status_code: 200
+    #   register: result
+    #   delegate_to: 127.0.0.1
+    #   tags:
+    #     - post
+
+    # - debug:
+    #     var: result
+    #   tags:
+    #     - post
